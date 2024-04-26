@@ -12,6 +12,6 @@ import java.util.UUID;
 @Repository
 public interface OrderRepositoryImpl extends JpaRepository<OrderEntity, UUID>, OrderRepository {
     @Override
-    @Query("SELECT o FROM OrderEntity o WHERE o.product.id = :id")
+    @Query("SELECT o FROM OrderEntity o WHERE o.product.products_id = :id")
     Optional<OrderEntity> findOrderByProductId(UUID id);
 }
