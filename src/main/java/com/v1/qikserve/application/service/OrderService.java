@@ -12,11 +12,9 @@ import java.util.List;
 
 public interface OrderService {
 
-    OrderEntity createOrder(OrderDto orderDto) throws  ExceptionCreatingOrder
-    ;
-
+    OrderEntity createOrder(OrderDto orderDto) throws  ExceptionCreatingOrder;
+    List<OrderEntity> createMultipleOrders(List<OrderDto> orderDto) throws ExceptionCreatingOrder;
     String cancelOrder(String order) throws OrderNotDeletedException;
-
     List<OrderResponseDto> getAllOrders();
 
 }

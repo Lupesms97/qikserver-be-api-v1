@@ -13,10 +13,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -72,6 +69,21 @@ public class OrderServiceImpl implements OrderService {
 
 
     }
+
+    @Override
+    public List<OrderEntity> createMultipleOrders(List<OrderDto> orderDto) {
+
+        return orderDto.stream().map(order -> {
+                    try {
+                        return createOrder(order);
+                    } catch (ExceptionCreatingOrder exceptionCreatingOrder) {
+                        exceptionCreatingOrder.printStackTrace();
+                        return null;
+                    }
+                }).filter(Objects::nonNull)
+                .toList();
+    }
+
     @Override
     public String cancelOrder(String idOrderToCancel) throws OrderNotDeletedException {
         orderRepository.findById(UUID.fromString(idOrderToCancel)).ifPresent(orderRepository::delete);

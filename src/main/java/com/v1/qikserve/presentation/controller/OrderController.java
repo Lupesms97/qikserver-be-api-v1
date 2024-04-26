@@ -7,7 +7,6 @@ import com.v1.qikserve.application.dto.ResponseDtoWithListOfOrders;
 import com.v1.qikserve.application.service.Impl.OrderServiceImpl;
 import com.v1.qikserve.domain.entity.OrderEntity;
 import com.v1.qikserve.presentation.exception.ExceptionCreatingOrder;
-import feign.Response;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -17,7 +16,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.http.HttpResponse;
 import java.util.List;
 
 @RestController
@@ -49,6 +47,45 @@ public class OrderController {
         );
 
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
+
+    }
+
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Orders created successfully",
+                    content = {
+                            @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(implementation = ResponseDto.class, type = "array")
+                            )
+                    }
+            ),
+            @ApiResponse(
+                    responseCode = "500",
+                    description = "Could not create the orders",
+                    content = {
+                            @Content(
+                                    mediaType = "application/json",
+                                    schema = @Schema(implementation = ExceptionCreatingOrder.class)
+                            )
+                    }
+            )})
+    @PostMapping("/create/multiples")
+    public ResponseEntity<List<ResponseDto>> createOrders(@RequestBody List<OrderDto> orderDto) {
+        List<OrderEntity> order = orderService.createMultipleOrders(orderDto);
+
+        List<ResponseDto> response = order.stream().map(o -> new ResponseDto(
+                o.getId().toString(),
+                "Order created successfully",
+                201,
+                true,
+                o.getDiscount(),
+                o.getTotalWithDiscount()
+        )).toList();
+
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
     }
     @ApiResponses(value = {
