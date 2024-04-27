@@ -1,5 +1,6 @@
 package com.v1.qikserve.domain.entity;
 
+import com.v1.qikserve.domain.entity.promotionDetails.PromotionDetails;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -10,12 +11,12 @@ import lombok.*;
 @NoArgsConstructor
 @Builder
 @ToString
-@Embeddable
+@Entity
 public class Promotion {
-
+    @Id
     private String promotion_id;
     private String type;
-    private int requiredQty;
-    private int promotion_price;
+    @Embedded
+    private PromotionDetails details;
 
 }

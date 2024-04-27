@@ -7,26 +7,35 @@ import com.v1.qikserve.domain.IdentifierProducer;
 import com.v1.qikserve.domain.entity.OrderEntity;
 import com.v1.qikserve.domain.entity.Products;
 import com.v1.qikserve.domain.entity.Promotion;
+import com.v1.qikserve.domain.entity.promotionDetails.*;
+
+import static java.util.stream.Collectors.toList;
 
 public class FromDto {
 
 
-    public OrderEntity ToEntity(OrderDto orderDto, ProductWithPromotionsDto product, int total, boolean hasPromotion, int totalWithDiscount, int discount, PromotionDto promotionApplied) {
+    public OrderEntity ToEntity(OrderDto orderDto,
+                                ProductWithPromotionsDto productWithPromotionsDto,
+                                int total,
+                                boolean hasPromotion,
+                                int totalWithDiscount,
+                                int discount,
+                                Promotion promotionApplied) {
         IdentifierProducer identifierProducer = IdentifierProducer.createInstance();
-        Products products = new FromDto().ToEntity(product);
+        Products products = new FromDto().ToEntity(productWithPromotionsDto);
 
         if (!hasPromotion){
-            promotionApplied = new PromotionDto("0", "none", 0, 0);
+            promotionApplied = new Promotion();
         }
 
-        Promotion promotion = new FromDto().ToEntity(promotionApplied);
+
         return new OrderEntity(
                 identifierProducer.getIdentifier(),
                 orderDto.quantity(),
                 products,
                 total,
                 hasPromotion,
-                promotion,
+                promotionApplied,
                 totalWithDiscount,
                 discount
         );
@@ -34,28 +43,35 @@ public class FromDto {
 
 
     public Products ToEntity(ProductWithPromotionsDto productsDto) {
-        return new Products(
+        Products product =  new Products(
                 productsDto.id(),
                 productsDto.name(),
                 productsDto.price(),
                 productsDto.promotions().stream().map(promotionDto -> Promotion.builder()
                         .promotion_id(promotionDto.id())
                         .type(promotionDto.type())
-                        .requiredQty(promotionDto.required_qty())
-                        .promotion_price(promotionDto.price())
-                        .build()).toList()
+                        .details(GetPromotionsDetails(promotionDto.type(), promotionDto))
+                        .build()).toList());
 
-        );
+        System.out.println(product);
+        return product;
     }
 
 
-    public Promotion ToEntity(PromotionDto promotionDto) {
-        return new Promotion(
-                promotionDto.id(),
-                promotionDto.type(),
-                promotionDto.required_qty(),
-                promotionDto.price()
-        );
+
+
+    private PromotionDetails GetPromotionsDetails(String type, PromotionDto promotionDto) {
+        switch (type) {
+            case "QTY_BASED_PRICE_OVERRIDE":
+                return new QtyBasedPriceOverridePromotionDetails(promotionDto.required_qty(), promotionDto.price());
+            case "FLAT_PERCENT":
+                return new FlatPercentPromotionDetails(promotionDto.amount());
+            case "BUY_X_GET_Y_FREE":
+                return new BuyXGetYFreePromotionDetails(promotionDto.required_qty(), promotionDto.free_qty());
+            default:
+                return new NoPromotionDetails();
+        }
+
 
     }
 }

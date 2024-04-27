@@ -10,14 +10,16 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @ToString
-@Embeddable
+@Entity
 public class Products {
-
+        @Id
         private String products_id;
         private String name;
         private int products_price;
 
-        @ElementCollection
-        private List<Promotion> promotionsApplied;
+        @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
+        @JoinColumn(name = "products_id")
+        private List<Promotion> promotionsApplicable;
+
     }
 

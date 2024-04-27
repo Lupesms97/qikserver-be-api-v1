@@ -17,14 +17,14 @@ public class OrderEntity {
         private UUID id;
         private int quantity;
 
-        @Embedded
+        @OneToOne(cascade = CascadeType.ALL)
         private Products product;
 
         private int total;
         private boolean hasPromotion;
 
 
-        @Embedded
+        @OneToOne(cascade = CascadeType.ALL)
         private Promotion promotionApplied;
         private int totalWithDiscount;
         private int discount;

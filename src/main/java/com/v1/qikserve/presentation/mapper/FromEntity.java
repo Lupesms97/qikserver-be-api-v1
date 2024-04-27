@@ -7,23 +7,23 @@ import com.v1.qikserve.domain.entity.Promotion;
 
 public class FromEntity {
 
-    public OrderResponseDto ToDto(OrderEntity orderEntity) {
-        return new OrderResponseDto(
-                ToDto(orderEntity.getPromotionApplied()),
-                ToDto(orderEntity.getProduct()),
-                orderEntity.getQuantity(),
-                orderEntity.getDiscount()
-        );
-    }
+//    public OrderResponseDto ToDto(OrderEntity orderEntity) {
+//        return new OrderResponseDto(
+//                ToDto(orderEntity.getPromotionApplied()),
+//                ToDto(orderEntity.getProduct()),
+//                orderEntity.getQuantity(),
+//                orderEntity.getDiscount()
+//        );
+//    }
 
-    public PromotionDto ToDto(Promotion promotion) {
-        return new PromotionDto(
-                promotion.getPromotion_id(),
-                promotion.getType(),
-                promotion.getRequiredQty(),
-                promotion.getPromotion_price()
-        );
-    }
+//    public PromotionDto ToDto(Promotion promotion) {
+//        return new PromotionDto(
+//                promotion.getPromotion_id(),
+//                promotion.getType(),
+//                promotion.getRequiredQty(),
+//                promotion.getPromotion_price()
+//        );
+//    }
 
     public ProductsDto ToDto(Products product) {
         return new ProductsDto(
