@@ -3,30 +3,35 @@ package com.v1.qikserve.presentation.mapper;
 import com.v1.qikserve.application.dto.OrderDto;
 import com.v1.qikserve.application.dto.ProductWithPromotionsDto;
 import com.v1.qikserve.application.dto.PromotionDto;
-import com.v1.qikserve.domain.IdentifierProducer;
 import com.v1.qikserve.domain.entity.OrderEntity;
 import com.v1.qikserve.domain.entity.Products;
 import com.v1.qikserve.domain.entity.Promotion;
+import com.v1.qikserve.domain.entity.promotionDetails.*;
 
 public class FromDto {
 
 
-    public OrderEntity ToEntity(OrderDto orderDto, ProductWithPromotionsDto product, int total, boolean hasPromotion, int totalWithDiscount, int discount, PromotionDto promotionApplied) {
-        IdentifierProducer identifierProducer = IdentifierProducer.createInstance();
-        Products products = new FromDto().ToEntity(product);
+    public OrderEntity ToEntity(OrderDto orderDto,
+                                ProductWithPromotionsDto productWithPromotionsDto,
+                                int total,
+                                boolean hasPromotion,
+                                Promotion promotionApplied,
+                                int totalWithDiscount,
+                                int discount
+                               ) {
+        Products products = new FromDto().ToEntity(productWithPromotionsDto);
 
         if (!hasPromotion){
-            promotionApplied = new PromotionDto("0", "none", 0, 0);
+            promotionApplied = new Promotion();
         }
 
-        Promotion promotion = new FromDto().ToEntity(promotionApplied);
+
         return new OrderEntity(
-                identifierProducer.getIdentifier(),
                 orderDto.quantity(),
                 products,
                 total,
                 hasPromotion,
-                promotion,
+                promotionApplied,
                 totalWithDiscount,
                 discount
         );
@@ -41,21 +46,23 @@ public class FromDto {
                 productsDto.promotions().stream().map(promotionDto -> Promotion.builder()
                         .promotion_id(promotionDto.id())
                         .type(promotionDto.type())
-                        .requiredQty(promotionDto.required_qty())
-                        .promotion_price(promotionDto.price())
-                        .build()).toList()
+                        .details(GetPromotionsDetails(promotionDto.type(), promotionDto))
+                        .build()).toList());
 
-        );
+
     }
 
 
-    public Promotion ToEntity(PromotionDto promotionDto) {
-        return new Promotion(
-                promotionDto.id(),
-                promotionDto.type(),
-                promotionDto.required_qty(),
-                promotionDto.price()
-        );
 
+
+    private PromotionDetails GetPromotionsDetails(String type, PromotionDto promotionDto) {
+        return switch (type) {
+            case "QTY_BASED_PRICE_OVERRIDE" ->
+                    new QtyBasedPriceOverridePromotionDetails(promotionDto.required_qty(), promotionDto.price());
+            case "FLAT_PERCENT" -> new FlatPercentPromotionDetails(promotionDto.amount());
+            case "BUY_X_GET_Y_FREE" ->
+                    new BuyXGetYFreePromotionDetails(promotionDto.required_qty(), promotionDto.free_qty());
+            default -> new NoPromotionDetails();
+        };
     }
 }

@@ -1,7 +1,21 @@
 package com.v1.qikserve.domain.entity;
 
-import jakarta.persistence.*;
-import lombok.*;
+import com.v1.qikserve.domain.entity.promotionDetails.PromotionDetails;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToOne;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
+import java.util.UUID;
 
 
 @Getter
@@ -10,12 +24,16 @@ import lombok.*;
 @NoArgsConstructor
 @Builder
 @ToString
-@Embeddable
+@Entity
 public class Promotion {
-
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
     private String promotion_id;
+    @Column(length = 100)
     private String type;
-    private int requiredQty;
-    private int promotion_price;
+    @OneToOne(cascade = CascadeType.PERSIST, orphanRemoval = true)
+    private PromotionDetails details;
+
 
 }

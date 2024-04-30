@@ -2,13 +2,19 @@ package com.v1.qikserve.application.service.Impl;
 
 import com.v1.qikserve.application.dao.InfoCondionalsDao;
 import com.v1.qikserve.application.dto.*;
+import com.v1.qikserve.application.enums.TypePromotion;
 import com.v1.qikserve.application.service.OrderService;
 import com.v1.qikserve.domain.entity.OrderEntity;
+import com.v1.qikserve.domain.entity.Products;
+import com.v1.qikserve.domain.entity.Promotion;
+import com.v1.qikserve.domain.entity.promotionDetails.PromotionDetails;
 import com.v1.qikserve.infrastructure.repositoryImpl.OrderRepositoryImpl;
+import com.v1.qikserve.infrastructure.repositoryImpl.PromotionRepositoryImpl;
+import com.v1.qikserve.infrastructure.repositoryImpl.promotionDetails.PromotionDetailsRepositoryImpl;
+import com.v1.qikserve.infrastructure.repositoryImpl.promotionDetails.PromotionDetailsRepositoryInstace;
 import com.v1.qikserve.presentation.exception.ExceptionCreatingOrder;
 import com.v1.qikserve.presentation.exception.OrderNotDeletedException;
 import com.v1.qikserve.presentation.mapper.FromDto;
-import com.v1.qikserve.presentation.mapper.FromEntity;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,58 +26,35 @@ import java.util.*;
 public class OrderServiceImpl implements OrderService {
 
     private final OrderRepositoryImpl orderRepository;
+    private final PromotionRepositoryImpl promotionRepository;
     private final GetProductsExtImpl getProductsExt;
+    private final PromotionDetailsRepositoryInstace promotionDetailsRepositoryInstace;
+
 
 
     @Transactional
     @Override
-    public OrderEntity createOrder(OrderDto orderDto) throws ExceptionCreatingOrder {
-
+    public ResponseDto createOrder(OrderDto orderDto) throws ExceptionCreatingOrder {
 
 
         ProductWithPromotionsDto productWithPromotionsDto = getProductsExt.getProductsWithPromotion(orderDto.productId());
 
-        InfoCondionalsDao infoCondionalsDao = new InfoCondionalsDao();
+        Products products = new FromDto().ToEntity(productWithPromotionsDto);
 
-        infoCondionalsDao.setHasPromotion(false);
-        infoCondionalsDao.setTotal(productWithPromotionsDto.price() * orderDto.quantity());
-        infoCondionalsDao.setTotalWithDiscount(productWithPromotionsDto.price() * orderDto.quantity());
-        infoCondionalsDao.setDiscount(0);
+        InfoCondionalsDao infoCondionalsDao = getInfoCondionalsDao(products, orderDto);
 
+        OrderEntity order = prepareAndStoreOrderPromotionAndDetails(orderDto, productWithPromotionsDto, infoCondionalsDao, products);
 
-        PromotionDto bestPromotion = findBestPromotion(productWithPromotionsDto, orderDto.quantity());
+        orderRepository.save(order);
 
-        if(!bestPromotion.id().equals("")) {
-            infoCondionalsDao.setHasPromotion(true);
-            infoCondionalsDao.setTotal(productWithPromotionsDto.price() * orderDto.quantity());
-            infoCondionalsDao.setTotalWithDiscount(SetTotalWithDiscount(orderDto.quantity(), bestPromotion));
-            infoCondionalsDao.setDiscount(infoCondionalsDao.getTotal() - infoCondionalsDao.getTotalWithDiscount());
-        }
+        return createResponse(order);
 
-        OrderEntity newOrder = new FromDto().ToEntity(orderDto,
-                productWithPromotionsDto,
-                infoCondionalsDao.getTotal(),
-                infoCondionalsDao.isHasPromotion(),
-                infoCondionalsDao.getTotalWithDiscount(),
-                infoCondionalsDao.getDiscount(),
-                bestPromotion);
-
-
-        try {
-            orderRepository.save(newOrder);
-        } catch (Exception e) {
-            throw new ExceptionCreatingOrder("Error saving the order");
-        }
-
-
-
-        return newOrder;
 
 
     }
 
     @Override
-    public List<OrderEntity> createMultipleOrders(List<OrderDto> orderDto) {
+    public List<ResponseDto> createMultipleOrders(List<OrderDto> orderDto) {
 
         return orderDto.stream().map(order -> {
                     try {
@@ -92,28 +75,185 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public List<OrderResponseDto> getAllOrders() {
-        return orderRepository.findAll().stream().map(order -> new FromEntity().ToDto(order)).toList();
+//        return orderRepository.findAll().stream().map(order -> new FromEntity().ToDto(order)).toList();
+        return null;
     }
 
-    private int SetTotalWithDiscount(int quantity, PromotionDto promotion) {
-        return promotion.price() * (quantity / promotion.required_qty()) +
-                (quantity % promotion.required_qty()) * promotion.price();
+
+    private Promotion getBestPromotion(Products products, int quantity) {
+        return products.getPromotionsApplicable().stream()
+                .max(Comparator.comparing(promotion -> promotion.getDetails().calculateDiscount(quantity, products.getProducts_price())))
+                .orElse(new Promotion());
+    }
+
+    private InfoCondionalsDao getInfoCondionalsDao(Products products, OrderDto orderDto) {
+
+        InfoCondionalsDao infoCondionalsDao = new InfoCondionalsDao();
+
+        infoCondionalsDao.setHasPromotion(false);
+        infoCondionalsDao.setTotal(products.getProducts_price() * orderDto.quantity());
+        infoCondionalsDao.setTotalWithDiscount(products.getProducts_price() * orderDto.quantity());
+        infoCondionalsDao.setDiscount(0);
+
+
+
+        if(!products.getPromotionsApplicable().isEmpty()){
+            Promotion promotion = getBestPromotion(products, orderDto.quantity());
+            int discount_info = promotion.getDetails().calculateDiscount(orderDto.quantity(), products.getProducts_price());
+            infoCondionalsDao.setHasPromotion(true);
+            infoCondionalsDao.setDiscount(discount_info);
+            infoCondionalsDao.setTotalWithDiscount(
+                    getTotalWithDiscountTypeBased(products,
+                            TypePromotion.valueOf(promotion.getType()),
+                            orderDto.quantity()
+                            , discount_info
+                            , promotion.getDetails().getPrice()));
+        }
+
+        return infoCondionalsDao;
+    }
+
+    private OrderEntity creatNewOrder(
+            OrderDto orderDto,
+            ProductWithPromotionsDto productWithPromotionsDto,
+            InfoCondionalsDao infoCondionalsDao,
+            Products products){
+
+        return new FromDto().ToEntity(orderDto,
+                productWithPromotionsDto,
+                infoCondionalsDao.getTotal(),
+                infoCondionalsDao.isHasPromotion(),
+                getBestPromotion(products, orderDto.quantity()),
+                infoCondionalsDao.getTotalWithDiscount(),
+                infoCondionalsDao.getDiscount()
+                );
+    }
+
+
+
+    private OrderEntity prepareAndStoreOrderPromotionAndDetails(
+            OrderDto orderDto,
+            ProductWithPromotionsDto productWithPromotionsDto,
+            InfoCondionalsDao infoCondionalsDao,
+            Products products){
+
+
+        OrderEntity order = creatNewOrder(orderDto, productWithPromotionsDto, infoCondionalsDao, products);
+
+
+        PromotionDetailsRepositoryImpl promotionsDetails = promotionDetailsRepositoryInstace.getRepository(order.getPromotionApplied().getType());
+        PromotionDetails promotionDetailsToSave = promotionsDetails.save(order.getPromotionApplied().getDetails());
+
+        Promotion promotionToSave = promotionRepository.save(order.getPromotionApplied());
+
+        order.getPromotionApplied().setDetails(promotionDetailsToSave);
+        order.setPromotionApplied(promotionToSave);
+
+        return order;
 
     }
 
-    private PromotionDto findBestPromotion(ProductWithPromotionsDto productWithPromotionsDto, int quantity) {
+    private ResponseDto createResponse(OrderEntity order) {
+        ResponseDto response = new ResponseDto(
+                order.getId().toString(),
+                201,
+                true,
+                "NO_PROMOTION",
+                order.getDiscount(),
+                order.getTotal(),
+                order.getTotalWithDiscount()
+        );
 
-        List<PromotionDto> availablePromotions = filterApplicablePromotions(productWithPromotionsDto, quantity);
 
-        Optional<PromotionDto> bestPromotion = availablePromotions.stream()
-                .max(Comparator.comparing(PromotionDto::price));
+        if ("BUY_X_GET_Y_FREE".equals(order.getPromotionApplied().getType())&& order.isHasPromotion()) {
+            return new ResponseDto(
+                    order.getId().toString(),
+                    201,
+                    true,
+                    order.getPromotionApplied().getType(),
+                    order.getTotalWithDiscount(),
+                    order.getTotal(),
+                    order.getTotal()
 
-        return bestPromotion.orElse(new PromotionDto("","",0,0));
+            );
+
+
+
+
+        }
+
+        if ("QTY_BASED_PRICE_OVERRIDE".equals(order.getPromotionApplied().getType())&& order.isHasPromotion()) {
+            return new ResponseDto(
+                    order.getId().toString(),
+                    201,
+                    true,
+                    order.getPromotionApplied().getType(),
+                    (order.getTotal() - order.getTotalWithDiscount()),
+                    order.getTotal(),
+                    order.getTotalWithDiscount()
+            );
+
+
+        }
+
+        if ("FLAT_PERCENT".equals(order.getPromotionApplied().getType())&& order.isHasPromotion()) {
+
+            return new ResponseDto(
+                    order.getId().toString(),
+                    201,
+                    true,
+                    order.getPromotionApplied().getType(),
+                    (order.getTotal() - order.getTotalWithDiscount()),
+                    order.getTotal(),
+                    order.getTotalWithDiscount());
+
+        }
+
+        if("NO_PROMOTION".equals(order.getPromotionApplied().getType())&& order.isHasPromotion()){
+            return new ResponseDto(
+                    order.getId().toString(),
+                    201,
+                    true,
+                    order.getPromotionApplied().getType(),
+                    0,
+                    order.getTotal(),
+                    order.getTotalWithDiscount()
+            );
+        }
+
+        return response;
+    }
+    private int getTotalWithDiscountTypeBased(Products product,
+                                              TypePromotion typePromotion,
+                                              int quantity, int discount,
+                                              int discountPrice) {
+        int totalWithDiscount = 0;
+        int total = product.getProducts_price() * quantity;
+
+        switch (typePromotion.toString()) {
+            case "BUY_X_GET_Y_FREE":
+                totalWithDiscount = discount * product.getProducts_price();
+                break;
+            case "QTY_BASED_PRICE_OVERRIDE":
+                int totalNormalPrice = (quantity - (discount*2) ) * product.getProducts_price();
+                int totalDiscountPrice = ((discount) *discountPrice);
+                totalWithDiscount = totalNormalPrice + totalDiscountPrice;
+                break;
+            case "FLAT_PERCENT":
+                totalWithDiscount = total - (total * discount / 100);
+                break;
+            case "NO_PROMOTION":
+                totalWithDiscount = total;
+                break;
+            default:
+                break;
+        }
+        return totalWithDiscount;
+
     }
 
-    private List<PromotionDto> filterApplicablePromotions(ProductWithPromotionsDto productWithPromotionsDto, int quantity) {
-        return productWithPromotionsDto.promotions().stream()
-                .filter(promotionDto -> promotionDto.required_qty() <= quantity)
-                .toList();
-    }
+
+
+
+
 }
