@@ -1,25 +1,28 @@
 package com.v1.qikserve.domain.entity.promotionDetails;
 
-import jakarta.persistence.Embeddable;
+import jakarta.persistence.DiscriminatorValue;
+import jakarta.persistence.Entity;
 import lombok.*;
 
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
+@AllArgsConstructor
 @ToString
-@Embeddable
-public class BuyXGetYFreePromotionDetails implements PromotionDetails {
+@Entity
+@DiscriminatorValue("BuyXGetYFreePromotionDetails")
+public class BuyXGetYFreePromotionDetails extends PromotionDetails {
 
-    private int required_qty_BuyXGetYFreePromotionDetails;
+    private int required_qty;
     private int freeQty;
 
     @Override
-    public int calculateDiscount(int quantity) {
-        int discount = 0;
-        if (quantity >= required_qty_BuyXGetYFreePromotionDetails) {
-            discount = (quantity / (required_qty_BuyXGetYFreePromotionDetails + freeQty)) * freeQty;
+    public int calculateDiscount(int quantity, int price ) {
+    // RETORNA A QUANTIDADE GRATIUITA
+        if (quantity >= required_qty) {
+            return (quantity / required_qty);
+        } else {
+            return 0;
         }
-        return discount;
     }
 }
