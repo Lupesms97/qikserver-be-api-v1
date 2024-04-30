@@ -5,7 +5,6 @@ import com.v1.qikserve.application.dto.OrderResponseDto;
 import com.v1.qikserve.application.dto.ResponseDto;
 import com.v1.qikserve.application.dto.ResponseDtoWithListOfOrders;
 import com.v1.qikserve.application.service.Impl.OrderServiceImpl;
-import com.v1.qikserve.domain.entity.OrderEntity;
 import com.v1.qikserve.presentation.exception.ExceptionCreatingOrder;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -35,18 +34,10 @@ public class OrderController {
                     @Schema(implementation = ExceptionCreatingOrder.class)) }) })
     @PostMapping("/create")
     public ResponseEntity<ResponseDto> createOrder(@RequestBody OrderDto orderDto) {
-        OrderEntity order = orderService.createOrder(orderDto);
+        ResponseDto responseDto = orderService.createOrder(orderDto);
 
-        ResponseDto response = new ResponseDto(
-                order.getId().toString(),
-                "Order created successfully",
-                201,
-                true,
-                order.getDiscount(),
-                order.getTotalWithDiscount()
-        );
 
-    return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
 
     }
 
@@ -73,17 +64,7 @@ public class OrderController {
             )})
     @PostMapping("/create/multiples")
     public ResponseEntity<List<ResponseDto>> createOrders(@RequestBody List<OrderDto> orderDto) {
-        List<OrderEntity> order = orderService.createMultipleOrders(orderDto);
-
-        List<ResponseDto> response = order.stream().map(o -> new ResponseDto(
-                o.getId().toString(),
-                "Order created successfully",
-                201,
-                true,
-                o.getDiscount(),
-                o.getTotalWithDiscount()
-        )).toList();
-
+        List<ResponseDto> response = orderService.createMultipleOrders(orderDto);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
 
@@ -101,10 +82,11 @@ public class OrderController {
         String response = orderService.cancelOrder(order_id);
 
         return ResponseEntity.status(HttpStatus.OK).body(new ResponseDto(
-                response,
                 "Order canceled successfully",
                 200,
                 true,
+                "No promotion applied",
+                0,
                 0,
                 0
         ));
