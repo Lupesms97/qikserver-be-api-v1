@@ -1,8 +1,19 @@
 package com.v1.qikserve.domain.entity;
 
 
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToOne;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+import org.hibernate.annotations.GenericGenerator;
+
 import java.util.UUID;
 
 @Getter
@@ -13,7 +24,9 @@ import java.util.UUID;
 @Entity
 public class OrderEntity {
         @Id
-        @GeneratedValue(strategy = GenerationType.AUTO)
+        @GeneratedValue(generator = "UUID")
+        @GenericGenerator(name = "UUID", strategy = "org.hibernate.id.UUIDGenerator")
+        @Column(name = "id", updatable = false, nullable = false)
         private UUID id;
         private int quantity;
 
@@ -29,6 +42,21 @@ public class OrderEntity {
         private int totalWithDiscount;
         private int discount;
 
+        public OrderEntity(int quantity,
+                           Products product,
+                           int total,
+                           boolean hasPromotion,
+                           Promotion promotionApplied,
+                           int totalWithDiscount,
+                           int discount) {
+            this.product = product;
+            this.quantity = quantity;
+            this.total = total;
+            this.hasPromotion = hasPromotion;
+            this.promotionApplied = promotionApplied;
+            this.totalWithDiscount = totalWithDiscount;
+            this.discount = discount;
+        }
 
 
 
